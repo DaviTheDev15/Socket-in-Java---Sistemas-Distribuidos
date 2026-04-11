@@ -1,0 +1,24 @@
+Gerador de Senha - Função
+Noticia - JSON
+Piada - JSON
+Conversor de Moeda - Função
+
+IP = "1.2.3.4";
+MSG = G
+
+
+client
+corpo {
+    "client_ip" : xxx.xxx.xxx,
+    "BODY" : "P"
+}
+
+server
+corpo {
+    "STATUS" : 200,
+    "client" : xxx.xxx.xxx,
+    "BODY" : "Resposta"
+}
+
+
+
