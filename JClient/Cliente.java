@@ -31,57 +31,58 @@ public class Cliente {
     public static void enviar(Socket servidor) {
         try {
             PrintWriter retornaSaidaProServidor = new PrintWriter(servidor.getOutputStream(), true);
-            Scanner teclado = new Scanner(System.in);
-
-            while (true) {
-                if (esperandoResposta) {
-                    Thread.sleep(100);
-                    continue;
-                }
-                System.out.println("\n========================");
-                System.out.println("Escolha uma opção:");
-                System.out.println("1 - Piada");
-                System.out.println("2 - Notícia");
-                System.out.println("3 - Senha");
-                System.out.println("4 - Moeda");
-                System.out.println("0 - Sair");
-                System.out.print(">> ");
-
-                String pergunta = teclado.nextLine();
-                String comando;
-
-                switch (pergunta) {
-                    case "1":
-                        comando = "GET /PIADA";
-                        break;
-                    case "2":
-                        comando = "GET /NOTICIA";
-                        break;
-                    case "3":
-                        comando = "GET /SENHA";
-                        break;
-                    case "4":
-                        comando = "GET /MOEDA";
-                        break;
-                    case "5":
-                        comando = "GET /LISTA";
-                        break;
-                    case "0":
-                        System.out.println("Encerrando...");
-                        servidor.close();
-                        return;
-                    default:
-                        System.out.println(VERMELHO + "Opção inválida!" + RESET);
+            try (Scanner teclado = new Scanner(System.in)) {
+                while (true) {
+                    if (esperandoResposta) {
+                        Thread.sleep(100);
                         continue;
-                }
+                    }
+                    System.out.println("\n========================");
+                    System.out.println("Escolha uma opção:");
+                    System.out.println("1 - Piada");
+                    System.out.println("2 - Notícia");
+                    System.out.println("3 - Senha");
+                    System.out.println("4 - Moeda");
+                    System.out.println("0 - Sair");
+                    System.out.print(">> ");
 
-                esperandoResposta = true;
-                retornaSaidaProServidor.println(comando);
+                    String pergunta = teclado.nextLine();
+                    String comando;
+
+                    switch (pergunta) {
+                        case "1":
+                            comando = "GET /PIADA";
+                            break;
+                        case "2":
+                            comando = "GET /NOTICIA";
+                            break;
+                        case "3":
+                            comando = "GET /SENHA";
+                            break;
+                        case "4":
+                            comando = "GET /MOEDA";
+                            break;
+                        case "5":
+                            comando = "GET /LISTA";
+                            break;
+                        case "0":
+                            System.out.println("Encerrando...");
+                            servidor.close();
+                            return;
+                        default:
+                            System.out.println(VERMELHO + "Opção inválida!" + RESET);
+                            continue;
+                    }
+
+                    esperandoResposta = true;
+                    retornaSaidaProServidor.println(comando);
+                }
             }
 
         } catch (Exception exception) {
             System.out.println(VERMELHO + "Erro ao enviar." + RESET);
         }
+        
     }
 
     public static void receber(Socket servidor) {
@@ -93,6 +94,12 @@ public class Cliente {
             boolean corpo = false;
 
             while ((resposta = recebeRespostaDoServidor.readLine()) != null) {
+
+                if (resposta.contains("IP já está conectado. Conexão recusada")) {
+                    System.out.println(VERMELHO + resposta + RESET);
+                    servidor.close();
+                    System.exit(0);
+                }
 
                 if (resposta.isEmpty()) {
                     corpo = true;

@@ -5,13 +5,15 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+import Helpers.ClientHandler;
 import Helpers.ConversorMoeda;
-import Helpers.Dados;
+import Helpers.TratamentoDeDados;
+import JClient.Cliente;
 
 public class Servidor {
 
-    static final int MAX_CLIENTES = 3;
-    static List<Socket> clientesConectadosAoServidor = Collections.synchronizedList(new ArrayList<>());
+    static final int MAX_CLIENTES = 1;
+    static List<ClientHandler> clientesConectadosAoServidor = Collections.synchronizedList(new ArrayList<>());
     static Queue<Socket> filaDeEspera = new LinkedList<>();
 
     public static void main(String[] args) throws IOException {
@@ -20,7 +22,10 @@ public class Servidor {
 
         while (true) {
             Socket cliente = aceitarClientes(server);
-            validacaoClientesAtivos(cliente);
+
+            if (cliente != null) {
+                validacaoClientesAtivos(cliente);
+            }
         }
     }
 
@@ -39,12 +44,17 @@ public class Servidor {
     public static void validacaoClientesAtivos(Socket cliente){
         try{
             synchronized (Servidor.class) {
-                if (clientesConectadosAoServidor.size() < MAX_CLIENTES && verificaIpCliente(cliente)) {
+                if (!verificaIpCliente(cliente)){
+                    PrintWriter out = new PrintWriter(cliente.getOutputStream(), true);
+                    out.println("IP já está conectado. Conexão recusada");
+                    cliente.close();
+                    return;
+                }
+                if (clientesConectadosAoServidor.size() < MAX_CLIENTES) {
                     ativarCliente(cliente);
                 } else {
                     filaDeEspera.add(cliente);
                     PrintWriter retornaSaidaProCliente = new PrintWriter(cliente.getOutputStream(), true);
-                    retornaSaidaProCliente.println("Servidor cheio ou IP já ativo!");
                     retornaSaidaProCliente.println("Você está na fila de espera.");
                     System.out.println("Cliente " + cliente.getInetAddress() + " foi para fila.");
                 }
@@ -60,35 +70,31 @@ public class Servidor {
         String IpDoNovoCliente = novoCliente.getInetAddress().getHostAddress();
 
         synchronized (clientesConectadosAoServidor) {
-            for (Socket cliente : clientesConectadosAoServidor) {
-                String ipExistente = cliente.getInetAddress().getHostAddress();
+            for (ClientHandler cliente : clientesConectadosAoServidor) {
+                String ipExistente = cliente.getSocket().getInetAddress().getHostAddress();
+
                 if (ipExistente.equals(IpDoNovoCliente)) {
                     return false;
                 }
             }
-        return true;
+            return true;
         }
     }
 
     public static void ativarCliente(Socket cliente) throws IOException {
-        clientesConectadosAoServidor.add(cliente);
+        ClientHandler handler = new ClientHandler(cliente);
+        clientesConectadosAoServidor.add(handler);
 
-        PrintWriter retornaSaidaProCliente = new PrintWriter(cliente.getOutputStream(), true);
-        retornaSaidaProCliente.println("Bem-vindo! Use: GET /PIADA | /NOTICIA | /SENHA | /MOEDA");
+        handler.start();
 
         System.out.println("Cliente ATIVO: " + cliente.getInetAddress());
-
-        BlockingQueue<String> fila = new LinkedBlockingQueue<>();
-
-        new Thread(() -> receber(cliente, fila)).start();
-        new Thread(() -> enviar(cliente, fila)).start();
     }
 
     public static void removerCliente(Socket cliente) {
         synchronized (Servidor.class) {
-            clientesConectadosAoServidor.remove(cliente);
-            System.out.println("Cliente removido: " + cliente.getInetAddress());
+            clientesConectadosAoServidor.removeIf(h -> h.getSocket().equals(cliente));
 
+            System.out.println("Cliente removido: " + cliente.getInetAddress());
             try {
                 cliente.close();
             } catch (IOException ignorar) {}
@@ -98,50 +104,12 @@ public class Servidor {
                 try {
                     PrintWriter retornaSaidaProCliente = new PrintWriter(proximoCliente.getOutputStream(), true);
                     retornaSaidaProCliente.println("Você saiu da fila! Agora está conectado.");
-
+                    System.out.println("Ativando cliente da fila: " + proximoCliente.getInetAddress());
                     ativarCliente(proximoCliente);
                 } catch (IOException exception) {
                     exception.printStackTrace();
                 }
             }
-        }
-    }
-
-    public static void receber(Socket cliente, BlockingQueue<String> fila) {
-        try {
-            BufferedReader recebeRequisicaoDoCliente = new BufferedReader(
-                    new InputStreamReader(cliente.getInputStream()));
-
-            String requisicao;
-
-            while ((requisicao = recebeRequisicaoDoCliente.readLine()) != null) {
-
-                if (requisicao.isEmpty()) continue;
-
-                String resposta = processarRequisicao(requisicao, cliente);
-                fila.put(resposta);
-            }
-
-        } catch (Exception exception) {
-            System.out.println("Cliente desconectado.");
-        } finally {
-            removerCliente(cliente);
-        }
-    }
-
-    public static void enviar(Socket cliente, BlockingQueue<String> fila) {
-        try {
-            PrintWriter retornaSaidaProCliente = new PrintWriter(cliente.getOutputStream(), true);
-
-            while (!cliente.isClosed()) {
-                String resposta = fila.take();
-                System.out.println("Enviando resposta para " + cliente.getInetAddress());
-                System.out.println(resposta);
-                retornaSaidaProCliente.println(resposta);
-            }
-
-        } catch (Exception exception) {
-            System.out.println("Erro ao enviar.");
         }
     }
 
@@ -168,7 +136,7 @@ public class Servidor {
 
                 case "/MOEDA":
                     return montarResposta(IpDoCliente, "200 OK", getConversor());
-                
+
                 case "/LISTA":
                     return montarResposta(IpDoCliente, "200 OK", getListaAtivos());
 
@@ -185,8 +153,8 @@ public class Servidor {
         StringBuilder listaDeIps = new StringBuilder();
 
         synchronized (clientesConectadosAoServidor) {
-            for (Socket cliente : clientesConectadosAoServidor) {
-                listaDeIps.append(cliente.getInetAddress()).append("\n");
+            for (ClientHandler handler : clientesConectadosAoServidor) {
+                listaDeIps.append(handler.getSocket().getInetAddress().getHostAddress()).append("\n");
             }
         }
         return listaDeIps.toString();
@@ -211,11 +179,11 @@ public class Servidor {
     }
 
     public static String getPiada() {
-        return Dados.getPiada();
+        return TratamentoDeDados.getPiada();
     }
 
     public static String getNoticia() {
-        return Dados.getNoticia();
+        return TratamentoDeDados.getNoticia();
     }
 
     public static String getConversor() throws InterruptedException {

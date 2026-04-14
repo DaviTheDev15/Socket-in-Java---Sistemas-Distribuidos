@@ -9,6 +9,7 @@ public class ConversorMoeda {
 
     public static String getMoeda() {
         try {
+            @SuppressWarnings("deprecation")
             URL url = new URL("https://api.exchangerate-api.com/v4/latest/BRL");
             HttpURLConnection conexao = (HttpURLConnection) url.openConnection();
             conexao.setRequestMethod("GET");

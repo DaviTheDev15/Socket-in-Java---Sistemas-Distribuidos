@@ -1,11 +1,10 @@
 package Helpers;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.InputStream;
 import java.io.IOException;
 import java.util.*;
 
-public class Dados {
+public class TratamentoDeDados {
 
     private static List<String> listaDePiadas = new ArrayList<>();
     private static List<String> listaDeNoticias = new ArrayList<>();
@@ -13,7 +12,13 @@ public class Dados {
 
     static {
         try {
-            String arquivoJson = new String(Files.readAllBytes(Paths.get("Dados.json")));
+            InputStream is = TratamentoDeDados.class.getClassLoader().getResourceAsStream("Helpers/Database/Dados.json");
+
+            if (is == null) {
+                throw new RuntimeException("Dados.json não encontrado em resources!");
+            }
+
+            String arquivoJson = new String(is.readAllBytes());
 
             String blocoPiadas = arquivoJson.split("\"piadas\"\\s*:\\s*\\[")[1].split("]")[0];
             for (String piada : blocoPiadas.split(",")) {
