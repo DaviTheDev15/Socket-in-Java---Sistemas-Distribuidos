@@ -8,6 +8,7 @@ import java.util.concurrent.*;
 import Helpers.ClientHandler;
 import Helpers.ConversorMoeda;
 import Helpers.TratamentoDeDados;
+import Helpers.GetMyIp;
 import JClient.Cliente;
 
 public class Servidor {
@@ -15,10 +16,13 @@ public class Servidor {
     static final int MAX_CLIENTES = 1;
     static List<ClientHandler> clientesConectadosAoServidor = Collections.synchronizedList(new ArrayList<>());
     static Queue<Socket> filaDeEspera = new LinkedList<>();
+    static final InetAddress meuIp = GetMyIp.retornaMeuIpReal();
+    static final int porta = 3001;
 
     public static void main(String[] args) throws IOException {
-        ServerSocket server = new ServerSocket(12345);
-        System.out.println("Servidor rodando...");
+        GetMyIp.debugIps();
+        ServerSocket server = new ServerSocket(porta);
+        System.out.println("Servidor rodando no IP: " + meuIp + " na porta " + porta);
 
         while (true) {
             Socket cliente = aceitarClientes(server);

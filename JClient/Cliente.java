@@ -16,7 +16,7 @@ public class Cliente {
 
     public static void main(String[] args) {
         try {
-            Socket servidorSocket = new Socket("localhost", 12345);
+            Socket servidorSocket = new Socket("192.168.56.1", 3001);
 
             System.out.println(AMARELO + "Conectado ao servidor!" + RESET);
 
